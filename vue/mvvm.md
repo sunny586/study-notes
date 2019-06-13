@@ -3,10 +3,10 @@
 ### 思路整理
 已经了解到vue是通过数据劫持的方式来做数据绑定的，其中最核心的方法便是通过`Object.defineProperty()`来实现对属性的劫持，达到监听数据变动的目的，无疑这个方法是本文中最重要、最基础的内容之一，如果不熟悉defineProperty，猛戳[这里](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty)
 整理了一下，要实现mvvm的双向绑定，就必须要实现以下几点：
-1、实现一个数据监听器Observer，能够对数据对象的所有属性进行监听，如有变动可拿到最新值并通知订阅者
-2、实现一个指令解析器Compile，对每个元素节点的指令进行扫描和解析，根据指令模板替换数据，以及绑定相应的更新函数
-3、实现一个Watcher，作为连接Observer和Compile的桥梁，能够订阅并收到每个属性变动的通知，执行指令绑定的相应回调函数，从而更新视图
-4、mvvm入口函数，整合以上三者
+1. 实现一个数据监听器Observer，能够对数据对象的所有属性进行监听，如有变动可拿到最新值并通知订阅者
+2. 实现一个指令解析器Compile，对每个元素节点的指令进行扫描和解析，根据指令模板替换数据，以及绑定相应的更新函数
+3. 实现一个Watcher，作为连接Observer和Compile的桥梁，能够订阅并收到每个属性变动的通知，执行指令绑定的相应回调函数，从而更新视图
+4. mvvm入口函数，整合以上三者
 
 上述流程如图所示：
 ![img2][img2]
@@ -61,6 +61,7 @@
 ```
 
 ## mvvm.js
+MVVM作为数据绑定的入口，整合Observer、Compile和Watcher三者，通过Observer来监听自己的model数据变化，通过Compile来解析编译模板指令，最终利用Watcher搭起Observer和Compile之间的通信桥梁，达到数据变化 -> 视图更新；视图交互变化(input) -> 数据model变更的双向绑定效果。
 
 ```js
 function MVVM(options) {
@@ -118,7 +119,9 @@ MVVM.prototype = {
 ```
 
 ## observer.js
-
+我们知道可以利用`Obeject.defineProperty()`来监听属性变动
+那么将需要observe的数据对象进行递归遍历，包括子属性对象的属性，都加上	`setter`和`getter`
+这样的话，给这个对象的某个值赋值，就会触发`setter`，那么就能监听到了数据变化。
 ```js
 function Observer(data) {
   this.data = data
@@ -140,6 +143,11 @@ Observer.prototype = {
     var dep = new Dep()
     var childObj = observe(val)
 
+    /**
+     * 这样我们已经可以监听每个数据的变化了，那么监听到变化之后就是怎么通知订阅者了，
+     * 所以接下来我们需要实现一个消息订阅器，很简单，维护一个数组，用来收集订阅者，
+     * 数据变动触发notify，再调用订阅者的update方法
+     */
     Object.defineProperty(data, key, {
       enumerable: true, // 可枚举
       configurable: false, // 不能再define
@@ -205,6 +213,10 @@ Dep.target = null
 ```
 
 ## compile.js
+compile主要做的事情是解析模板指令，将模板中的变量替换成数据，然后初始化渲染页面视图，并将每个指令对应的节点绑定更新函数，添加监听数据的订阅者，一旦数据有变动，收到通知，更新视图，如图所示：
+![img3][img3]
+
+因为遍历解析的过程有多次操作dom节点，为提高性能和效率，会先将vue实例根节点的`el`转换成文档碎片`fragment`进行解析编译操作，解析完成，再将`fragment`添加回原来的真实dom节点中
 
 ```js
 function Compile(el, vm) {
@@ -223,7 +235,7 @@ Compile.prototype = {
     var fragment = document.createDocumentFragment(),
       child = el.firstChild
 
-    // 将原生节点拷贝到fragment
+    // 将原生节点拷贝到fragment（搬家过程）
     while ((child = el.firstChild)) {
       fragment.appendChild(child)
     }
@@ -394,6 +406,12 @@ var updater = {
 ```
 
 ## watcher.js
+Watcher订阅者作为Observer和Compile之间通信的桥梁，主要做的事情是:
+1、在自身实例化时往属性订阅器(dep)里面添加自己
+2、自身必须有一个update()方法
+3、待属性变动dep.notice()通知时，能调用自身的update()方法，并触发Compile中绑定的回调，则功成身退。
+
+实例化`Watcher`的时候，调用`get()`方法，通过`Dep.target = watcherInstance`标记订阅者是当前watcher实例，强行触发属性定义的`getter`方法，`getter`方法执行的时候，就会在属性的订阅器`dep`添加当前watcher实例，从而在属性值有变化的时候，watcherInstance就能收到更新通知。
 
 ```js
 function Watcher(vm, expOrFn, cb) {
