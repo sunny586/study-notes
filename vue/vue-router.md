@@ -1,5 +1,55 @@
 # vue-router 实现原理
 
+## man.js
+```js
+import Vue from 'vue'
+import App from './App.vue'
+import router from './router'
+
+Vue.config.productionTip = false
+
+new Vue({
+  router,
+  render: h => h(App)
+}).$mount('#app')
+
+```
+
+## router.js
+```js
+import Vue from 'vue'
+import KRouter from './kkb-router'
+// 实际执行的是install方法
+Vue.use(KRouter)
+
+// 路由基本的配置
+export default new KRouter({
+  routes: [
+    {
+      path: '/',
+      component: Home,
+      // 进入路由之前的生命周期
+      beforeEnter(from, to, next) {
+        // next执行才跳转
+        console.log(`beforeEnter from ${from} to ${to}`)
+        // 模拟异步
+        setTimeout(() => {
+          // 2秒之后再跳转
+          // 做任何权限认证的事情
+          next()
+        }, 1000)
+      }
+    },
+    {
+      path: '/about',
+      component: () => import(/* webpackChunkName: "about" */ './views/About.vue')
+    }
+  ]
+})
+```
+
+## KRouter 源码
+
 ```js
 // 路由入口
 let Vue
@@ -9,8 +59,17 @@ class KRouter {
     // 别的地方要使用Vue
     Vue = _Vue
     Vue.mixin({
+      // Vue生命周期钩子函数
       beforeCreate() {
         Vue.prototype.$kkbrouter = '来了小老弟，我是路由'
+        /**
+         * 这里的this有两种，一种事通过new Vue出来的，一种是组件VueComponent出来的
+         * 比如router-view，router-link
+         * this.$options.router如果为true，说明 是new Vue({
+            router,
+            ...
+           }) 出来的
+         */
         if (this.$options.router) {
           // 这是入口
           // 启动路由
