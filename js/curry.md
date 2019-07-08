@@ -87,8 +87,6 @@ function _curry(fn, length, holder, args, holders) {
 }
 ```
 
-## 一个合格的中级前端工程师必须要掌握的 28 个 JavaScript 技巧
-
 1.判断对象的数据类型
 
 ```js
@@ -107,9 +105,87 @@ const selfMap = function(fn, context) {
     if (!arr.hasOwnProperty(i)) continue
     mappedArr[i] = fn.call(context, arr[i], i, this)
   }
-  return maooedArr
+  return mappedArr
 }
 
 Array.prototype.selfMap = selfMap
-[1, 2, 3].selfMap(number => number * 2)
+;[1, 2, 3].selfMap(number => number * 2)
+```
+
+函数防抖就是，延迟一段时间再执行函数，如果这段时间内又触发了该函数，则延迟重新计算
+
+```js
+/**
+ * @desc 函数防抖
+ * @param func 函数
+ * @param wait 延迟执行毫秒数
+ * @param immediate true 表立即执行，false 表非立即执行
+ */
+function debounce(func, wait, immediate = false) {
+  let timeout
+
+  return function() {
+    let context = this
+    let args = arguments
+
+    if (timeout) clearTimeout(timeout)
+    if (immediate) {
+      var callNow = !timeout
+      timeout = setTimeout(() => {
+        timeout = null
+      }, wait)
+      if (callNow) func.apply(context, args)
+    } else {
+      timeout = setTimeout(function() {
+        func.apply(context, args)
+      }, wait)
+    }
+  }
+}
+
+var fn = function() {
+  console.log('boom')
+}
+
+setInterval(debounce(fn, 500), 1000) // 第一次在1500ms后触发，之后每1000ms触发一次
+
+setInterval(debounce(fn, 2000), 1000) // 不会触发一次（我把函数防抖看出技能读条，如果读条没完成就用技能，便会失败而且重新读条）
+```
+
+节流：函数间隔一段时间后才能再触发，避免某些函数触发频率过高，比如滚动条滚动事件触发的函数
+
+```js
+// 简单实现
+/**
+ * @desc 函数节流
+ * @param func 函数
+ * @param wait 延迟执行毫秒数
+ * @param type 1 表时间戳版，2 表定时器版
+ */
+function throttle(func, wait, type) {
+  if (type === 1) {
+    let previous = 0
+  } else if (type === 2) {
+    let timeout
+  }
+  return function() {
+    let context = this
+    let args = arguments
+    if (type === 1) {
+      let now = Date.now()
+
+      if (now - previous > wait) {
+        func.apply(context, args)
+        previous = now
+      }
+    } else if (type === 2) {
+      if (!timeout) {
+        timeout = setTimeout(() => {
+          timeout = null
+          func.apply(context, args)
+        }, wait)
+      }
+    }
+  }
+}
 ```
