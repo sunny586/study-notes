@@ -86,3 +86,30 @@ function _curry(fn, length, holder, args, holders) {
   }
 }
 ```
+
+## 一个合格的中级前端工程师必须要掌握的 28 个 JavaScript 技巧
+
+1.判断对象的数据类型
+
+```js
+const isType = type => target => `[object ${type}]` === Object.prototype.toString.call(target)
+const isArray = isType('Array')
+console.log(isArray([])) > true
+```
+
+2.循环实现数组 map 方法
+
+```js
+const selfMap = function(fn, context) {
+  let arr = Array.prototype.slice.call(this)
+  let mappedArr = Array(arr.length - 1)
+  for (let i = 0; i < arr.length; i++) {
+    if (!arr.hasOwnProperty(i)) continue
+    mappedArr[i] = fn.call(context, arr[i], i, this)
+  }
+  return maooedArr
+}
+
+Array.prototype.selfMap = selfMap
+[1, 2, 3].selfMap(number => number * 2)
+```
